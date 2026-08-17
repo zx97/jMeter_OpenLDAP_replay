@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SPDX-License-Identifier: AGPL-3.0-or-later
+  Copyright (c) 2026 Manuel FLURY
+
+  This file is part of jMeter_OpenLDAP_replay: replays OpenLDAP access-log
+  traffic with Apache JMeter and renders an HTML dashboard. Distributed
+  under the GNU Affero General Public License v3.0 (AGPL-3.0-or-later);
+  see the LICENSE file for the full text.
+-->
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Replay OpenLDAP operations (*.replay)" enabled="true">
+      <stringProp name="TestPlan.comments">Replays the BIND/SRCH operations of the *.replay file generated from a slapd log, and checks that the results match (return code err and number of entries nentries).</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="REPLAY_FILE" elementType="Argument">
+            <stringProp name="Argument.name">REPLAY_FILE</stringProp>
+            <stringProp name="Argument.value">sample.replay</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Path of the replay file (absolute preferred, e.g. /opt/jMeter_OpenLDAP_replay/examples/sample.replay)</stringProp>
+          </elementProp>
+          <elementProp name="REPLAY_SEPARATOR" elementType="Argument">
+            <stringProp name="Argument.name">REPLAY_SEPARATOR</stringProp>
+            <stringProp name="Argument.value">tab</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Separator of the replay file: tab (recommended, avoids collision with the OR operator | of LDAP filters) | comma | any other character. Generate with: slaplog -o replay --replay-separator tab &lt;log&gt; &gt; out.replay</stringProp>
+          </elementProp>
+          <elementProp name="PASSWORD_FILE" elementType="Argument">
+            <stringProp name="Argument.name">PASSWORD_FILE</stringProp>
+            <stringProp name="Argument.value">passwords.csv</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">DN|password file for the BINDs. Leave empty to use LDAP_DEFAULT_PASSWORD.</stringProp>
+          </elementProp>
+          <elementProp name="LDAP_DEFAULT_PASSWORD" elementType="Argument">
+            <stringProp name="Argument.name">LDAP_DEFAULT_PASSWORD</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Default password used for every DN absent from the PASSWORD_FILE.</stringProp>
+          </elementProp>
+          <elementProp name="LDAP_HOST" elementType="Argument">
+            <stringProp name="Argument.name">LDAP_HOST</stringProp>
+            <stringProp name="Argument.value">localhost</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Host of the target LDAP server (the one being replayed)</stringProp>
+          </elementProp>
+          <elementProp name="LDAP_PORT" elementType="Argument">
+            <stringProp name="Argument.name">LDAP_PORT</stringProp>
+            <stringProp name="Argument.value">389</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">LDAP port (636 if LDAP_USE_SSL=true)</stringProp>
+          </elementProp>
+          <elementProp name="LDAP_USE_SSL" elementType="Argument">
+            <stringProp name="Argument.name">LDAP_USE_SSL</stringProp>
+            <stringProp name="Argument.value">false</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">true = LDAPS connection (SSL)</stringProp>
+          </elementProp>
+          <elementProp name="LDAP_USE_STARTTLS" elementType="Argument">
+            <stringProp name="Argument.name">LDAP_USE_STARTTLS</stringProp>
+            <stringProp name="Argument.value">false</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">true = StartTLS after connection</stringProp>
+          </elementProp>
+          <elementProp name="LDAP_SYSTEM_DN" elementType="Argument">
+            <stringProp name="Argument.name">LDAP_SYSTEM_DN</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">If set, the SEARCH operations use this system bind (the replay file does not contain the identity of the SRCHs). Empty = anonymous search.</stringProp>
+          </elementProp>
+          <elementProp name="LDAP_SYSTEM_PASSWORD" elementType="Argument">
+            <stringProp name="Argument.name">LDAP_SYSTEM_PASSWORD</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Password of the LDAP_SYSTEM_DN system bind</stringProp>
+          </elementProp>
+          <elementProp name="PACING_MODE" elementType="Argument">
+            <stringProp name="Argument.name">PACING_MODE</stringProp>
+            <stringProp name="Argument.value">none</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">none = as fast as possible | delta = wait equal to the timestamp gaps of the file | sorted = sort by timestamp then gaps</stringProp>
+          </elementProp>
+          <elementProp name="PACING_CAP_MS" elementType="Argument">
+            <stringProp name="Argument.name">PACING_CAP_MS</stringProp>
+            <stringProp name="Argument.value">10000</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Maximum wait (ms) between operations with PACING_MODE=delta/sorted</stringProp>
+          </elementProp>
+          <elementProp name="COMPARE_DNS" elementType="Argument">
+            <stringProp name="Argument.name">COMPARE_DNS</stringProp>
+            <stringProp name="Argument.value">false</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">true = also compare the list of returned DNs if an 18th column (expected DNs, comma separated) is present in the replay</stringProp>
+          </elementProp>
+          <elementProp name="REPORT_FILE" elementType="Argument">
+            <stringProp name="Argument.name">REPORT_FILE</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Path of the detailed metrics report written by the script at the end of the run (replay_report.txt). Leave empty to keep the metrics only in the sample response.</stringProp>
+          </elementProp>
+          <elementProp name="REPLAY_START" elementType="Argument">
+            <stringProp name="Argument.name">REPLAY_START</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Start of the time range to replay, ISO-8601 (e.g. 2026-05-27T17:00:00Z). Empty = beginning of the file. Used to reproduce a particular incident period.</stringProp>
+          </elementProp>
+          <elementProp name="REPLAY_END" elementType="Argument">
+            <stringProp name="Argument.name">REPLAY_END</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">End of the time range to replay, ISO-8601. Empty = end of the file.</stringProp>
+          </elementProp>
+          <elementProp name="REPLAY_LOOPS" elementType="Argument">
+            <stringProp name="Argument.name">REPLAY_LOOPS</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Number of times the workload is repeated (1 = once). Increase to raise the load and probe the limit the server can sustain.</stringProp>
+          </elementProp>
+          <elementProp name="CONCURRENCY" elementType="Argument">
+            <stringProp name="Argument.name">CONCURRENCY</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Number of connections replayed in parallel (1 = sequential, historical behaviour). One worker thread owns a whole connection, so session state is preserved while the load rises. Main lever of the load ramp-up; pacing is ignored when &gt; 1.</stringProp>
+          </elementProp>
+          <elementProp name="CONCURRENCY_PROFILE" elementType="Argument">
+            <stringProp name="Argument.name">CONCURRENCY_PROFILE</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Path of a concurrency curve file: one point per line "&lt;time&gt; &lt;concurrency&gt;" where time is either seconds from test start (e.g. "300 16") or a time of day HH:MM (e.g. "09:00 16") modelling a typical day. Between the points the target concurrency is ramped linearly (ramp-up / hold / ramp-down / second hump ...). With HH:MM times the whole day is compressed into TEST_DURATION_S, or scaled by TIME_SCALE seconds per day-minute (default 1). Empty = use the fixed CONCURRENCY pool.</stringProp>
+          </elementProp>
+          <elementProp name="TEST_DURATION_S" elementType="Argument">
+            <stringProp name="Argument.name">TEST_DURATION_S</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Total duration of the test in seconds (e.g. 1800 for half an hour). The replay workload is repeated in a loop to fill the duration; without a CONCURRENCY_PROFILE this holds CONCURRENCY constant. Empty = run until the workload (or the profile) is exhausted.</stringProp>
+          </elementProp>
+          <elementProp name="TIME_SCALE" elementType="Argument">
+            <stringProp name="Argument.name">TIME_SCALE</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Seconds of test per day-minute when the CONCURRENCY_PROFILE uses HH:MM times and TEST_DURATION_S is empty (default 1 - a full day becomes 24 minutes of test).</stringProp>
+          </elementProp>
+          <elementProp name="STOP_ON_INFRA_ERR" elementType="Argument">
+            <stringProp name="Argument.name">STOP_ON_INFRA_ERR</stringProp>
+            <stringProp name="Argument.value">false</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">true = stop the curve as soon as an infrastructure error is observed (LDAP stopped replying). Useful for a dedicated "until rupture" run: the test records the exact point where the service broke.</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Replay Thread Group (1 thread)">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">1</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Replay: read of file + BIND/SRCH + verification">
+          <stringProp name="TestPlan.comments">Each line of the replay file is processed: BIND (simple bind with DN + password) or SRCH (search and verification of err/nentries/DNs). Each operation produces a sub-sample.</stringProp>
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="filename">replay_ldap.groovy</stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="script"></stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="SimpleDataWriter" testclass="ResultCollector" testname="Simple Data Writer (results.jtl)">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename">results.jtl</stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report (sub-samples by op)">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+          <boolProp name="useGroupName">true</boolProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

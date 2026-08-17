@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (c) 2026 Manuel FLURY
+#
+# This file is part of jMeter_OpenLDAP_replay: replays OpenLDAP access-log
+# traffic with Apache JMeter and renders an HTML dashboard. Distributed
+# under the GNU Affero General Public License v3.0 (AGPL-3.0-or-later);
+# see the LICENSE file for the full text.
+#
+# Example anonymized replay file for jMeter_OpenLDAP_replay.
+#
+# Format: TAB-separated, one line per LDAP operation:
+#   timestamp <TAB> conn <TAB> op <TAB> type <TAB> base <TAB> filter <TAB> attrs <TAB> scope <TAB> deref <TAB> binddn <TAB> authcid <TAB> authzid <TAB> err <TAB> etime <TAB> qtime <TAB> nentries <TAB> text
+#
+# Supported type values:
+#   - BIND    : simple bind as `binddn`. err is the expected result code (0 = OK).
+#   - SRCH    : search at `base` with `filter` (RFC 4515). err = result code,
+#              nentries = expected entry count. If an 18th column is present,
+#              it is the comma-sorted list of expected DNs (optional fidelity).
+#   - CMP     : LDAP compare: `base` is the entry DN, `filter` is `attr:value`
+#              (RFC 4515 assertion). err = result code (0 = compare-true,
+#              5 = compare-false, 32 = noSuchObject, ...).
+#   - UNBIND  : graceful disconnect. Any further op on the same conn is skipped.
+#              No result code expected.
+#   - ABANDON : fire-and-forget. The `filter` column carries the numeric
+#              message id of the operation to cancel.
+#
+# Identity handling:
+#   - binddn / authcid / authzid appear on EVERY row (BIND, SRCH, CMP),
+#     exactly as slaplog writes them from the original log. On BIND
+#     rows they tell the replay script which DN to bind as; on SRCH
+#     and CMP rows they record who performed the operation.
+#   - Following conn -> first BIND of that conn reconstructs the
+#     identity (this is normal LDAP: a search or compare runs under
+#     the DN that bound the connection). The replay script honours
+#     this by using the connection's bound DN automatically.
+#   - All DN values in this file are anonymized placeholders under
+#     dc=example,dc=org, so the identity reconstruction via conn is
+#     harmless (it only reveals the same generic DNs).
+#   - conn is an opaque dispatch identifier (one worker thread per
+#     unique conn). Sequential numbers (1, 2, 3, ...) in this sample
+#     are local to this file; production replay files from slaplog
+#     carry the original log conn ids, which the replay script
+#     treats as opaque keys.
+#
+# Only BIND, SRCH, CMP, UNBIND and ABANDON are replayed by
+# replay_ldap.groovy. Replace the example DNs, passwords and search
+# base to match your directory (see examples/sample_passwords.csv).
+#
+# This file is intentionally tiny (~30 ops over ~60 s) so that you
+# can run a smoke test end-to-end without producing a 100 MB JTL.
+# Use slaplog (AGPL-3.0) to generate a real replay file from your
+# own slapd access log.
+
+timestamp	conn	op	type	base	filter	attrs	scope	deref	binddn	authcid	authzid	err	etime	qtime	nentries	text
+2026-01-05T08:00:00Z	1	0	BIND						uid=svc-account,ou=people,dc=example,dc=org			0	0.01	0.0		auth OK
+2026-01-05T08:00:00Z	1	1	SRCH	ou=people,dc=example,dc=org	(uid=user001)	uid cn mail	one	3	uid=svc-account,ou=people,dc=example,dc=org			0	0.008	0.0	1	
+2026-01-05T08:00:00Z	1	2	CMP	uid=user001,ou=people,dc=example,dc=org	uid:user001				uid=svc-account,ou=people,dc=example,dc=org			0	0.003	0.0		compare TRUE
+2026-01-05T08:00:00Z	1	3	SRCH	ou=people,dc=example,dc=org	(uid=user002)	uid cn mail	one	3	uid=svc-account,ou=people,dc=example,dc=org			0	0.007	0.0	1	
+2026-01-05T08:00:00Z	1	4	CMP	uid=user002,ou=people,dc=example,dc=org	uid:user002				uid=svc-account,ou=people,dc=example,dc=org			0	0.003	0.0		compare TRUE
+2026-01-05T08:00:00Z	1	5	ABANDON		9999							0	0.001	0.0		
+2026-01-05T08:00:00Z	1	6	UNBIND									0	0.002	0.0		
+2026-01-05T08:00:10Z	2	0	BIND						uid=user001,ou=people,dc=example,dc=org			0	0.011	0.0		auth OK
+2026-01-05T08:00:10Z	2	1	CMP	uid=user001,ou=people,dc=example,dc=org	mail:user001@example.org				uid=user001,ou=people,dc=example,dc=org			5	0.003	0.0		compare FALSE
+2026-01-05T08:00:10Z	2	2	SRCH	ou=people,dc=example,dc=org	(uid=user001)	uid cn mail labeledURI	one	3	uid=user001,ou=people,dc=example,dc=org			0	0.009	0.0	1	
+2026-01-05T08:00:10Z	2	3	UNBIND									0	0.002	0.0		
+2026-01-05T08:00:20Z	3	0	BIND						uid=user002,ou=people,dc=example,dc=org			0	0.011	0.0		auth OK
+2026-01-05T08:00:20Z	3	1	SRCH	ou=people,dc=example,dc=org	(uid=user002)	uid cn mail labeledURI	one	3	uid=user002,ou=people,dc=example,dc=org			0	0.008	0.0	1	
+2026-01-05T08:00:20Z	3	2	UNBIND									0	0.002	0.0		
+2026-01-05T08:00:30Z	4	0	BIND						uid=user001,ou=people,dc=example,dc=org			0	0.01	0.0		auth OK
+2026-01-05T08:00:30Z	4	1	SRCH	ou=people,dc=example,dc=org	(uid=user003)	uid cn mail	one	3	uid=user001,ou=people,dc=example,dc=org			0	0.007	0.0	1	
+2026-01-05T08:00:30Z	4	2	SRCH	ou=people,dc=example,dc=org	(&(objectClass=inetOrgPerson)(uid=user003))	uid cn	one	3	uid=user001,ou=people,dc=example,dc=org			0	0.011	0.0	1	
+2026-01-05T08:00:30Z	4	3	SRCH	ou=groups,dc=example,dc=org	(cn=group003)	cn member	one	3	uid=user001,ou=people,dc=example,dc=org			0	0.01	0.0	1	
+2026-01-05T08:00:30Z	4	4	UNBIND									0	0.002	0.0		
+2026-01-05T08:00:40Z	5	0	BIND						uid=user004,ou=people,dc=example,dc=org			0	0.012	0.0		auth OK
+2026-01-05T08:00:40Z	5	1	CMP	uid=user004,ou=people,dc=example,dc=org	uid:user004				uid=user004,ou=people,dc=example,dc=org			0	0.003	0.0		compare TRUE
+2026-01-05T08:00:40Z	5	2	UNBIND									0	0.002	0.0		
+2026-01-05T08:00:50Z	6	0	BIND						uid=user005,ou=people,dc=example,dc=org			0	0.011	0.0		auth OK
+2026-01-05T08:00:50Z	6	1	SRCH	ou=groups,dc=example,dc=org	(&(cn=group00*)(member=*))	cn	one	3	uid=user005,ou=people,dc=example,dc=org			0	0.008	0.0	5	
+2026-01-05T08:00:50Z	6	2	SRCH	ou=people,dc=example,dc=org	(uid=user005)	uid cn mail labeledURI	one	3	uid=user005,ou=people,dc=example,dc=org			0	0.007	0.0	1	
+2026-01-05T08:00:50Z	6	3	UNBIND									0	0.002	0.0		
+2026-01-05T08:01:00Z	7	0	BIND						uid=svc-account,ou=people,dc=example,dc=org			0	0.01	0.0		auth OK
+2026-01-05T08:01:00Z	7	1	SRCH	ou=people,dc=example,dc=org	(uid=user006)	uid cn	one	3	uid=svc-account,ou=people,dc=example,dc=org			0	0.008	0.0	1	
+2026-01-05T08:01:00Z	7	2	UNBIND									0	0.002	0.0		

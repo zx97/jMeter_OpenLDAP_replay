@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>LDAP ramp &mdash; report index</title><style>
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 24px;
+    background: #0f172a; color: #e2e8f0;
+}
+h1, h2, h3 { color: #f8fafc; margin-top: 1.4em; }
+h1 { font-size: 1.7em; border-bottom: 1px solid #334155; padding-bottom: 0.3em; }
+h2 { font-size: 1.3em; border-bottom: 1px solid #1e293b; padding-bottom: 0.2em; }
+h3 { font-size: 1.1em; color: #cbd5e1; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+           gap: 12px; margin: 16px 0; }
+.kpi { background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+       padding: 14px 16px; }
+.kpi .label { font-size: 0.8em; color: #94a3b8; text-transform: uppercase;
+              letter-spacing: 0.05em; }
+.kpi .value { font-size: 1.6em; font-weight: 600; color: #f1f5f9; margin-top: 4px; }
+.kpi.succ   .value { color: #4ade80; }
+.kpi.fail   .value { color: #f87171; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.9em; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #1e293b; }
+th { background: #1e293b; color: #cbd5e1; font-weight: 600; position: sticky; top: 0; }
+th.num { text-align: right; }
+tr:hover td { background: #1e293b; }
+td.num { text-align: right; font-family: ui-monospace, "SF Mono", monospace; }
+.bar { display: inline-block; height: 8px; border-radius: 4px;
+       background: linear-gradient(90deg, #4ade80, #22d3ee); vertical-align: middle; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-row .label { width: 110px; font-family: ui-monospace, monospace;
+                  font-size: 0.85em; color: #94a3b8; }
+.bar-row .bar { flex: 1; }
+.bar-row .val { width: 70px; text-align: right; font-family: ui-monospace, monospace;
+                font-size: 0.85em; }
+.chart { background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+         padding: 12px; margin: 16px 0; }
+.chart svg { width: 100%; height: auto; }
+.failure-list { font-family: ui-monospace, monospace; font-size: 0.8em;
+                background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+                padding: 12px; max-height: 480px; overflow: auto; }
+.section { margin: 18px 0; }
+.muted { color: #94a3b8; font-size: 0.9em; }
+.danger { color: #f87171; }
+.ok { color: #4ade80; }
+.scroll-x { overflow-x: auto; }
+.legend { background: #1e293b; border: 1px solid #475569; border-left: 4px solid #22d3ee;
+          border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+.legend h2 { margin-top: 0; }
+.legend dl { margin: 0; }
+.legend dt { font-weight: 600; color: #f1f5f9; font-family: ui-monospace, "SF Mono", monospace;
+             margin-top: 10px; }
+.legend dd { margin: 2px 0 0 0; color: #cbd5e1; }
+.legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+                  margin-right: 6px; vertical-align: middle; }
+.toggle-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 8px 4px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85em;
+          cursor: pointer; user-select: none; }
+.toggle .swatch { width: 14px; height: 14px; border-radius: 3px;
+                  display: inline-block; flex: 0 0 auto; }
+.toggle input { accent-color: #22d3ee; }
+.topnav { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: nowrap;
+          overflow-x: auto; gap: 2px 8px; align-items: center; padding: 8px 14px; margin: -24px -24px 18px;
+          background: #0b1220; border-bottom: 1px solid #334155; font-size: 0.8em;
+          white-space: nowrap; scrollbar-width: thin; }
+.topnav a { color: #94a3b8; text-decoration: none; padding: 3px 7px; border-radius: 5px; }
+.topnav a:hover { background: #1e293b; color: #e2e8f0; }
+.topnav a.active { background: #164e63; color: #67e8f9; font-weight: 600; }
+.topnav .brand { font-weight: 700; color: #e2e8f0; margin-right: 6px; flex: 0 0 auto; }
+.topnav .group { color: #64748b; margin-left: 8px; flex: 0 0 auto; }
+.chart { position: relative; }
+.chart-tip { display: none; position: absolute; z-index: 60; pointer-events: none;
+             background: #0b1220; border: 1px solid #475569; border-radius: 6px;
+             padding: 6px 10px; font-size: 0.78em; max-width: 260px;
+             box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+.chart-tip .tip-title { font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+.chart-tip .tip-row { color: #cbd5e1; }
+.chart-tip .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+                     margin-right: 5px; vertical-align: middle; }
+.report-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 10px; margin: 10px 0 22px; }
+.link-card { background: #0f1a2e; border: 1px solid #24344d; border-radius: 8px; padding: 0; }
+.link-card a { display: block; color: #cbd5e1; text-decoration: none; padding: 12px 14px; }
+.link-card a:hover { background: #16233d; border-radius: 8px; }
+.link-card strong { color: #67e8f9; display: block; margin-bottom: 4px; }
+.page-footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #334155;
+               font-size: 0.8em; color: #94a3b8; }
+.page-footer a { color: #67e8f9; text-decoration: none; }
+.page-footer a:hover { text-decoration: underline; }
+@media (prefers-color-scheme: light) {
+    .link-card { background: #fff; border-color: #e2e8f0; }
+    .link-card a { color: #334155; }
+    .link-card strong { color: #0e7490; }
+}
+@media (prefers-color-scheme: light) {
+    .topnav { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+    .topnav a { color: #475569; }
+    .topnav a:hover { background: #e2e8f0; color: #0f172a; }
+    .topnav a.active { background: #cffafe; color: #0e7490; }
+    .topnav .brand { color: #0f172a; }
+    .chart-tip { background: #fff; border-color: #cbd5e1; }
+    .chart-tip .tip-title { color: #0f172a; }
+    .chart-tip .tip-row { color: #334155; }
+}
+@media (prefers-color-scheme: light) {
+    body { background: #f8fafc; color: #1e293b; }
+    h1, h2, h3 { color: #0f172a; }
+    .kpi, .chart, .failure-list, .legend { background: #fff; border-color: #e2e8f0; }
+    .kpi .label { color: #64748b; }
+    .kpi .value { color: #0f172a; }
+    .legend { border-left-color: #0891b2; }
+    .legend dt { color: #0f172a; }
+    .legend dd { color: #334155; }
+    th { background: #f1f5f9; color: #475569; }
+    tr:hover td { background: #f1f5f9; }
+}
+</style></head><body><nav class="topnav"><span class="brand">LDAP ramp</span><a href="index.html" class=" active">Index</a><a href="compare.html" class="">Compare</a><span class="group">Load:</span><a href="conc_120.html" class="">conc 120</a><span class="group">Injector:</span><a href="injector_conc_120.html" class="">injector 120</a><span class="group">Fidelity:</span><a href="fidelity_conc_120.html" class="">fid 120</a></nav><h1>LDAP ramp &mdash; report index</h1><p class="intro">This report was generated by replaying the recorded LDAP scenario <code>/opt/jMeter_OpenLDAP_replay/examples/sample.replay</code> for a test duration of <strong>16:04</strong> (93971 operations), from 1 anonymous injector (192.0.2.10) to an LDAP server (ldaps://ldap.example.org:636).</p><p class="intro cache-note"><strong>Cache note:</strong> the LDAP instances were not restarted between runs, so their caches were not primed (they stayed warm). Two consecutive tests should therefore be identical; monitor this to keep the runs comparable.</p><p class="muted">Runs directory: <code>examples/sample_report_input</code> &middot; 1 concurrency steps (120). Use the tabs above or the cards below to open each report.</p><h2>Reports</h2><div class="report-links"><div class="link-card"><a href="compare.html"><strong>Compare</strong><br>All concurrency levels in one report (toggleable charts)</a></div><div class="link-card"><a href="conc_120.html"><strong>Load conc 120</strong><br>Throughput, latency, behaviour over time, server resources</a></div><div class="link-card"><a href="injector_conc_120.html"><strong>Injector conc 120</strong><br>Injector resources (injector host + jMeter JVM)</a></div><div class="link-card"><a href="fidelity_conc_120.html"><strong>Fidelity conc 120</strong><br>Replay fidelity check vs the original log</a></div></div><h2>Transaction summary by concurrency</h2><h3>BIND</h3>
+<div class="scroll-x"><table>
+<tr><th>CONCURRENCY</th><th class='num'>Total</th><th class='num'>Min</th><th class='num'>Avg</th><th class='num'>Max</th><th class='num'>Std Dev</th><th class='num'>90%</th><th class='num'>Pass</th><th class='num'>Fail</th></tr>
+<tr><td class="lbl"><a href="conc_120.html">120</a></td><td class="num">22682</td><td class="num">0.000</td><td class="num">119.546</td><td class="num">314.000</td><td class="num">41.790</td><td class="num">173.000</td><td class="num">22682</td><td class="num ">0</td></tr>
+</table></div><h3>SRCH</h3>
+<div class="scroll-x"><table>
+<tr><th>CONCURRENCY</th><th class='num'>Total</th><th class='num'>Min</th><th class='num'>Avg</th><th class='num'>Max</th><th class='num'>Std Dev</th><th class='num'>90%</th><th class='num'>Pass</th><th class='num'>Fail</th></tr>
+<tr><td class="lbl"><a href="conc_120.html">120</a></td><td class="num">32403</td><td class="num">0.000</td><td class="num">37.991</td><td class="num">91.000</td><td class="num">13.270</td><td class="num">55.000</td><td class="num">32403</td><td class="num ">0</td></tr>
+</table></div><h3>CMP</h3>
+<div class="scroll-x"><table>
+<tr><th>CONCURRENCY</th><th class='num'>Total</th><th class='num'>Min</th><th class='num'>Avg</th><th class='num'>Max</th><th class='num'>Std Dev</th><th class='num'>90%</th><th class='num'>Pass</th><th class='num'>Fail</th></tr>
+<tr><td class="lbl"><a href="conc_120.html">120</a></td><td class="num">12961</td><td class="num">0.000</td><td class="num">8.003</td><td class="num">19.000</td><td class="num">2.790</td><td class="num">12.000</td><td class="num">12961</td><td class="num ">0</td></tr>
+</table></div><h3>UNBIND</h3>
+<div class="scroll-x"><table>
+<tr><th>CONCURRENCY</th><th class='num'>Total</th><th class='num'>Min</th><th class='num'>Avg</th><th class='num'>Max</th><th class='num'>Std Dev</th><th class='num'>90%</th><th class='num'>Pass</th><th class='num'>Fail</th></tr>
+<tr><td class="lbl"><a href="conc_120.html">120</a></td><td class="num">22682</td><td class="num">0.000</td><td class="num">2.000</td><td class="num">5.000</td><td class="num">0.755</td><td class="num">3.000</td><td class="num">22682</td><td class="num ">0</td></tr>
+</table></div><h3>ABANDON</h3>
+<div class="scroll-x"><table>
+<tr><th>CONCURRENCY</th><th class='num'>Total</th><th class='num'>Min</th><th class='num'>Avg</th><th class='num'>Max</th><th class='num'>Std Dev</th><th class='num'>90%</th><th class='num'>Pass</th><th class='num'>Fail</th></tr>
+<tr><td class="lbl"><a href="conc_120.html">120</a></td><td class="num">3243</td><td class="num">0.000</td><td class="num">0.493</td><td class="num">1.000</td><td class="num">0.500</td><td class="num">1.000</td><td class="num">3243</td><td class="num ">0</td></tr>
+</table></div><div class="legend" id="legend"><h2>Legend &mdash; how to read this report</h2><dl><dt>RATE/s</dt><dd>Throughput: number of operations completed per second.</dd><dt>AVGms</dt><dd>Average response time of the LDAP server, in milliseconds.</dd><dt>p50 / p95 / p99 (ms)</dt><dd>Response time percentiles: the value under which 50% / 95% / 99% of the operations completed. Example: <code>p95 = 41 ms</code> means 95% of the operations took 41 ms or less. They reveal the tail of the latency distribution: the gap between p50 and p99 grows when the server starts to saturate.</dd><dt>MAXms</dt><dd>Slowest single operation observed.</dd><dt>INFRA_ERR</dt><dd>Infrastructure errors: operations where LDAP did not reply at all (network failure, timeout, connection refused). The only real failures; everything else counts as “LDAP replied”.</dd><dt>Transactions per second</dt><dd>Throughput of all operations combined (BIND + SRCH + CMP + UNBIND + ABANDON, i.e. every operation type of the replay): number of completed transactions per second, bucketed over short intervals. A plateau means the server cannot go faster.</dd><dt>Average transaction response time (ms)</dt><dd>Mean response time of all operations per interval. Read it together with Transactions per second: when throughput plateaus while this curve rises, the server is saturated.</dd><dt>Concurrent connections</dt><dd>Number of LDAP connections in flight at the same time (the load level of the test).</dd><dt>Transaction summary table</dt><dd>Per operation type (BIND, SRCH, CMP, UNBIND, ABANDON): total count, minimum, average, maximum, standard deviation, 90th percentile, and the number of passed / failed transactions. The <code>90%</code> column follows the LoadRunner Transaction Summary convention; the comparison charts additionally show p95 / p99.</dd><dt>Elapsed time on the X axis</dt><dd>All charts use the test duration, starting from zero, formatted as <code>mm:ss</code> (e.g. <code>2:35</code> = 2 minutes 35 seconds after the start of the test), never the clock time of the logs.</dd></dl><p>Chart colours (Behaviour over time): <span class="swatch" style="background:#4ade80"></span>green bars = operations per minute (load), <span class="swatch" style="background:#fbbf24"></span>amber dots and line = average latency (ms), <span class="swatch" style="background:#f87171"></span>red ticks = infrastructure errors. Hover a bar for details.</p></div><footer class="page-footer">Generated with jMeter_OpenLDAP_replay v1.0.0 &mdash; <a href="https://github.com/zx97/jMeter_OpenLDAP_replay">https://github.com/zx97/jMeter_OpenLDAP_replay</a> &middot; <a href="https://gitlab.com/ooo.manu.ooo/jMeter_OpenLDAP_replay">https://gitlab.com/ooo.manu.ooo/jMeter_OpenLDAP_replay</a></footer>
+<script>
+function toggleSeries(name, checked) {
+  var els = document.querySelectorAll('[data-series="' + name + '"]');
+  for (var i = 0; i < els.length; i++) {
+    els[i].style.display = checked ? '' : 'none';
+  }
+}
+function fmtNum(v) {
+  if (v === null || v === undefined) return '';
+  var n = Number(v);
+  if (!isFinite(n)) return String(v);
+  return n.toLocaleString('en-US', {maximumFractionDigits: 3});
+}
+function bindTooltips() {
+  var charts = document.querySelectorAll('.chart[data-tip]');
+  for (var c = 0; c < charts.length; c++) {
+    (function (chart) {
+      var data;
+      try { data = JSON.parse(chart.getAttribute('data-tip')); } catch (e) { return; }
+      if (!data || !data.series || data.series.length === 0) return;
+      if (data.series.length > 10) return;
+      if (data.labels.length > 200) return;
+      var svg = chart.querySelector('svg');
+      var tip = chart.querySelector('.chart-tip');
+      if (!svg || !tip) return;
+      var span = data.xspan || 0;
+      svg.addEventListener('mousemove', function (ev) {
+        var rect = svg.getBoundingClientRect();
+        var x = (ev.clientX - rect.left) / rect.width * 1000;
+        var idx = Math.round((x - data.x0) / (span / Math.max(1, data.labels.length - 1)));
+        if (idx < 0) idx = 0;
+        if (idx >= data.labels.length) idx = data.labels.length - 1;
+        var html = '<div class="tip-title">' + data.labels[idx] + '</div>';
+        for (var s = 0; s < data.series.length; s++) {
+          var v = data.series[s].values[idx];
+          if (v === null || v === undefined) continue;
+          html += '<div class="tip-row"><span class="swatch" style="background:' +
+                  data.series[s].color + '"></span>' + data.series[s].name +
+                  ': ' + fmtNum(v) + '</div>';
+        }
+        tip.innerHTML = html;
+        tip.style.display = 'block';
+        var cRect = chart.getBoundingClientRect();
+        tip.style.left = (ev.clientX - cRect.left + 14) + 'px';
+        tip.style.top = (ev.clientY - cRect.top + 14) + 'px';
+      });
+      svg.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+    })(charts[c]);
+  }
+}
+document.addEventListener('DOMContentLoaded', bindTooltips);
+</script>
+</body></html>

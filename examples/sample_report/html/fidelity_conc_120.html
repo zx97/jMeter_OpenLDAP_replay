@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>LDAP replay fidelity report</title><style>
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 24px;
+    background: #0f172a; color: #e2e8f0;
+}
+h1, h2, h3 { color: #f8fafc; margin-top: 1.4em; }
+h1 { font-size: 1.7em; border-bottom: 1px solid #334155; padding-bottom: 0.3em; }
+h2 { font-size: 1.3em; border-bottom: 1px solid #1e293b; padding-bottom: 0.2em; }
+h3 { font-size: 1.1em; color: #cbd5e1; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+           gap: 12px; margin: 16px 0; }
+.kpi { background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+       padding: 14px 16px; }
+.kpi .label { font-size: 0.8em; color: #94a3b8; text-transform: uppercase;
+              letter-spacing: 0.05em; }
+.kpi .value { font-size: 1.6em; font-weight: 600; color: #f1f5f9; margin-top: 4px; }
+.kpi.succ   .value { color: #4ade80; }
+.kpi.fail   .value { color: #f87171; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.9em; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #1e293b; }
+th { background: #1e293b; color: #cbd5e1; font-weight: 600; position: sticky; top: 0; }
+th.num { text-align: right; }
+tr:hover td { background: #1e293b; }
+td.num { text-align: right; font-family: ui-monospace, "SF Mono", monospace; }
+.bar { display: inline-block; height: 8px; border-radius: 4px;
+       background: linear-gradient(90deg, #4ade80, #22d3ee); vertical-align: middle; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-row .label { width: 110px; font-family: ui-monospace, monospace;
+                  font-size: 0.85em; color: #94a3b8; }
+.bar-row .bar { flex: 1; }
+.bar-row .val { width: 70px; text-align: right; font-family: ui-monospace, monospace;
+                font-size: 0.85em; }
+.chart { background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+         padding: 12px; margin: 16px 0; }
+.chart svg { width: 100%; height: auto; }
+.failure-list { font-family: ui-monospace, monospace; font-size: 0.8em;
+                background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+                padding: 12px; max-height: 480px; overflow: auto; }
+.section { margin: 18px 0; }
+.muted { color: #94a3b8; font-size: 0.9em; }
+.danger { color: #f87171; }
+.ok { color: #4ade80; }
+.scroll-x { overflow-x: auto; }
+.legend { background: #1e293b; border: 1px solid #475569; border-left: 4px solid #22d3ee;
+          border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+.legend h2 { margin-top: 0; }
+.legend dl { margin: 0; }
+.legend dt { font-weight: 600; color: #f1f5f9; font-family: ui-monospace, "SF Mono", monospace;
+             margin-top: 10px; }
+.legend dd { margin: 2px 0 0 0; color: #cbd5e1; }
+.legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+                  margin-right: 6px; vertical-align: middle; }
+.toggle-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 8px 4px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85em;
+          cursor: pointer; user-select: none; }
+.toggle .swatch { width: 14px; height: 14px; border-radius: 3px;
+                  display: inline-block; flex: 0 0 auto; }
+.toggle input { accent-color: #22d3ee; }
+.topnav { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: nowrap;
+          overflow-x: auto; gap: 2px 8px; align-items: center; padding: 8px 14px; margin: -24px -24px 18px;
+          background: #0b1220; border-bottom: 1px solid #334155; font-size: 0.8em;
+          white-space: nowrap; scrollbar-width: thin; }
+.topnav a { color: #94a3b8; text-decoration: none; padding: 3px 7px; border-radius: 5px; }
+.topnav a:hover { background: #1e293b; color: #e2e8f0; }
+.topnav a.active { background: #164e63; color: #67e8f9; font-weight: 600; }
+.topnav .brand { font-weight: 700; color: #e2e8f0; margin-right: 6px; flex: 0 0 auto; }
+.topnav .group { color: #64748b; margin-left: 8px; flex: 0 0 auto; }
+.chart { position: relative; }
+.chart-tip { display: none; position: absolute; z-index: 60; pointer-events: none;
+             background: #0b1220; border: 1px solid #475569; border-radius: 6px;
+             padding: 6px 10px; font-size: 0.78em; max-width: 260px;
+             box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+.chart-tip .tip-title { font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+.chart-tip .tip-row { color: #cbd5e1; }
+.chart-tip .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+                     margin-right: 5px; vertical-align: middle; }
+.report-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 10px; margin: 10px 0 22px; }
+.link-card { background: #0f1a2e; border: 1px solid #24344d; border-radius: 8px; padding: 0; }
+.link-card a { display: block; color: #cbd5e1; text-decoration: none; padding: 12px 14px; }
+.link-card a:hover { background: #16233d; border-radius: 8px; }
+.link-card strong { color: #67e8f9; display: block; margin-bottom: 4px; }
+.page-footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #334155;
+               font-size: 0.8em; color: #94a3b8; }
+.page-footer a { color: #67e8f9; text-decoration: none; }
+.page-footer a:hover { text-decoration: underline; }
+@media (prefers-color-scheme: light) {
+    .link-card { background: #fff; border-color: #e2e8f0; }
+    .link-card a { color: #334155; }
+    .link-card strong { color: #0e7490; }
+}
+@media (prefers-color-scheme: light) {
+    .topnav { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+    .topnav a { color: #475569; }
+    .topnav a:hover { background: #e2e8f0; color: #0f172a; }
+    .topnav a.active { background: #cffafe; color: #0e7490; }
+    .topnav .brand { color: #0f172a; }
+    .chart-tip { background: #fff; border-color: #cbd5e1; }
+    .chart-tip .tip-title { color: #0f172a; }
+    .chart-tip .tip-row { color: #334155; }
+}
+@media (prefers-color-scheme: light) {
+    body { background: #f8fafc; color: #1e293b; }
+    h1, h2, h3 { color: #0f172a; }
+    .kpi, .chart, .failure-list, .legend { background: #fff; border-color: #e2e8f0; }
+    .kpi .label { color: #64748b; }
+    .kpi .value { color: #0f172a; }
+    .legend { border-left-color: #0891b2; }
+    .legend dt { color: #0f172a; }
+    .legend dd { color: #334155; }
+    th { background: #f1f5f9; color: #475569; }
+    tr:hover td { background: #f1f5f9; }
+}
+</style></head><body><nav class="topnav"><span class="brand">LDAP ramp</span><a href="index.html" class="">Index</a><a href="compare.html" class="">Compare</a><span class="group">Load:</span><a href="conc_120.html" class="">conc 120</a><span class="group">Injector:</span><a href="injector_conc_120.html" class="">injector 120</a><span class="group">Fidelity:</span><a href="fidelity_conc_120.html" class=" active">fid 120</a></nav><h1>LDAP replay fidelity report</h1><p class="intro">This report was generated by replaying the recorded LDAP scenario <code>/opt/jMeter_OpenLDAP_replay/examples/sample.replay</code> for a test duration of <strong>16:04</strong> (93971 operations), from 1 anonymous injector (192.0.2.10) to an LDAP server (ldaps://ldap.example.org:636).</p><p class="intro cache-note"><strong>Cache note:</strong> the LDAP instances were not restarted between runs, so their caches were not primed (they stayed warm). Two consecutive tests should therefore be identical; monitor this to keep the runs comparable.</p><h2>Fidelity check</h2><p class="muted">Fidelity vs the log is informational: a wrong password or a missing entry counts as "LDAP replied" (see the primary metrics table).</p>
+<div class="scroll-x"><table>
+<tr><th>TYPE</th><th class="num">TOTAL</th><th class="num">REPLAYED</th><th class="num">MATCHED</th><th class="num">MISMATCHED</th><th class="num">ERR_MIS</th><th class="num">CNT_MIS</th><th class="num">DNS_MIS</th></tr>
+<tr><td>BIND</td><td class="num">22682</td><td class="num">22682</td><td class="num">22341</td><td class="num">341</td><td class="num danger">136</td><td class="num danger">205</td><td class="num ">0</td></tr>
+<tr><td>SRCH</td><td class="num">32403</td><td class="num">32403</td><td class="num">31916</td><td class="num">487</td><td class="num danger">146</td><td class="num danger">341</td><td class="num ">0</td></tr>
+<tr><td>CMP</td><td class="num">12961</td><td class="num">12961</td><td class="num">12961</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td><td class="num ">0</td></tr>
+<tr><td>UNBIND</td><td class="num">22682</td><td class="num">22682</td><td class="num">22682</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td><td class="num ">0</td></tr>
+<tr><td>ABANDON</td><td class="num">3243</td><td class="num">3243</td><td class="num">3243</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td><td class="num ">0</td></tr>
+</table></div><h2>Fidelity mismatch classification</h2><table>
+<tr><th>FIDELITY MISMATCH CLASS</th><th class='num'>Count</th><th class='num'>%</th></tr>
+<tr><td>BIND anonymous bind (no DN in log)</td><td class="num">14</td><td class="num">58.3%</td></tr>
+<tr><td>SRCH entries mismatch (2)</td><td class="num">4</td><td class="num">16.7%</td></tr>
+<tr><td>SRCH entries mismatch (5)</td><td class="num">1</td><td class="num">4.2%</td></tr>
+<tr><td>SRCH entries mismatch (4)</td><td class="num">1</td><td class="num">4.2%</td></tr>
+<tr><td>SRCH entries mismatch (88)</td><td class="num">1</td><td class="num">4.2%</td></tr>
+<tr><td>SRCH entries mismatch (0)</td><td class="num">1</td><td class="num">4.2%</td></tr>
+<tr><td>SRCH entries mismatch (3)</td><td class="num">1</td><td class="num">4.2%</td></tr>
+<tr><td>SRCH entries mismatch (10)</td><td class="num">1</td><td class="num">4.2%</td></tr>
+</table><h3>Fidelity mismatches (24)</h3>
+<p class="muted">Showing first 24 of 24 mismatches (LDAP replied successfully but the result differs from the log):</p><div class="failure-list"><div>pass1 SRCH conn=897615 op=16 : SRCH 5 entrie(s), EXPECTED 5, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user060)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 SRCH conn=144091 op=18 : SRCH 2 entrie(s), EXPECTED 4, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user028)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 BIND conn=829034 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=605170 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=892582 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 SRCH conn=824306 op=20 : SRCH 0 entrie(s), EXPECTED 2, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user006)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 SRCH conn=992421 op=15 : SRCH 87 entrie(s), EXPECTED 88, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user027)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 BIND conn=818785 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=209204 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 SRCH conn=302359 op=8 : SRCH 0 entrie(s), EXPECTED 0, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user094)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 SRCH conn=730581 op=7 : SRCH 1 entrie(s), EXPECTED 2, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user091)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 BIND conn=196998 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=248298 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=648785 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=295480 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 SRCH conn=628316 op=13 : SRCH 1 entrie(s), EXPECTED 3, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user014)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 BIND conn=986405 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=290532 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=139399 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 BIND conn=386750 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 SRCH conn=754476 op=7 : SRCH 8 entrie(s), EXPECTED 10, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user015)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 SRCH conn=230562 op=15 : SRCH 1 entrie(s), EXPECTED 2, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user015)), etimeOrig=0.007 =&gt; FAIL</div>
+<div>pass1 BIND conn=705853 op=0 : BIND without binddn (empty column)</div>
+<div>pass1 SRCH conn=552818 op=7 : SRCH 2 entrie(s), EXPECTED 2, base=ou=people,dc=example,dc=org, scope=sub, deref=3, filter=(&amp;(objectClass=inetOrgPerson)(uid=user032)), etimeOrig=0.007 =&gt; FAIL</div></div><div class="legend" id="legend"><h2>Legend &mdash; how to read this report</h2><dl><dt>RATE/s</dt><dd>Throughput: number of operations completed per second.</dd><dt>AVGms</dt><dd>Average response time of the LDAP server, in milliseconds.</dd><dt>p50 / p95 / p99 (ms)</dt><dd>Response time percentiles: the value under which 50% / 95% / 99% of the operations completed. Example: <code>p95 = 41 ms</code> means 95% of the operations took 41 ms or less. They reveal the tail of the latency distribution: the gap between p50 and p99 grows when the server starts to saturate.</dd><dt>MAXms</dt><dd>Slowest single operation observed.</dd><dt>INFRA_ERR</dt><dd>Infrastructure errors: operations where LDAP did not reply at all (network failure, timeout, connection refused). The only real failures; everything else counts as “LDAP replied”.</dd><dt>Transactions per second</dt><dd>Throughput of all operations combined (BIND + SRCH + CMP + UNBIND + ABANDON, i.e. every operation type of the replay): number of completed transactions per second, bucketed over short intervals. A plateau means the server cannot go faster.</dd><dt>Average transaction response time (ms)</dt><dd>Mean response time of all operations per interval. Read it together with Transactions per second: when throughput plateaus while this curve rises, the server is saturated.</dd><dt>Concurrent connections</dt><dd>Number of LDAP connections in flight at the same time (the load level of the test).</dd><dt>Transaction summary table</dt><dd>Per operation type (BIND, SRCH, CMP, UNBIND, ABANDON): total count, minimum, average, maximum, standard deviation, 90th percentile, and the number of passed / failed transactions. The <code>90%</code> column follows the LoadRunner Transaction Summary convention; the comparison charts additionally show p95 / p99.</dd><dt>Elapsed time on the X axis</dt><dd>All charts use the test duration, starting from zero, formatted as <code>mm:ss</code> (e.g. <code>2:35</code> = 2 minutes 35 seconds after the start of the test), never the clock time of the logs.</dd></dl><p>Chart colours (Behaviour over time): <span class="swatch" style="background:#4ade80"></span>green bars = operations per minute (load), <span class="swatch" style="background:#fbbf24"></span>amber dots and line = average latency (ms), <span class="swatch" style="background:#f87171"></span>red ticks = infrastructure errors. Hover a bar for details.</p></div><footer class="page-footer">Generated with jMeter_OpenLDAP_replay v1.0.0 &mdash; <a href="https://github.com/zx97/jMeter_OpenLDAP_replay">https://github.com/zx97/jMeter_OpenLDAP_replay</a> &middot; <a href="https://gitlab.com/ooo.manu.ooo/jMeter_OpenLDAP_replay">https://gitlab.com/ooo.manu.ooo/jMeter_OpenLDAP_replay</a></footer></body></html>

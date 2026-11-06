@@ -60,10 +60,10 @@ HOST = re.compile(
     r"^(?:\d{4}-\d\d-\d\dT\S+|[A-Z][a-z]{2}\s+\d+\s+\d\d:\d\d:\d\d)"
     r"\s+(\S+)\s+slapd\b"
 )
-# Any hostname that ends in the real organisation's suffix, wherever it
-# appears: syslog line, DN, URL, config file, comment.
+# Any hostname that ends in the `.int` TLD, wherever it appears: syslog line,
+# DN, URL, config file, comment.
 INT_TLD = re.compile(
-    r"(?<![A-Za-z0-9.-])(?:[A-Za-z0-9-]+\.)*int(?![A-Za-z0-9-])",
+    r"(?<![A-Za-z0-9.-])(?:[A-Za-z0-9-]+\.)+int(?![A-Za-z0-9-])",
     re.IGNORECASE,
 )
 # An organisation attribute whose value looks like a domain name (o=<domain>).
